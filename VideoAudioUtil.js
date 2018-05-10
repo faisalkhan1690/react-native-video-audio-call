@@ -26,7 +26,6 @@ const socket = io.connect('https://react-native-webrtc.herokuapp.com', {transpor
 const configuration = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
 const pcPeers = {};
 let localStream;
-let container;
 
 export default class VideoAudioUtil extends Component{
   
@@ -45,8 +44,8 @@ export default class VideoAudioUtil extends Component{
       textRoomValue: '',
     };
   }
-  componentDidMount() {
-    container = this;
+
+  componentDidMount(){
     socket.on('exchange', function(data){
       exchange(data);
     });
@@ -54,12 +53,13 @@ export default class VideoAudioUtil extends Component{
       leave(socketId);
     });
     
-    socket.on('connect', function(data) {
-      console.log('connect');
-      this.getLocalStream(true, function(stream) {
+    socket.on('connect', (data)=()=> {
+      console.warn('connect');
+      this.getLocalStream(true, (stream)=()=> {
+        console.warn('connect1');
         localStream = stream;
-        container.setState({selfViewSrc: stream.toURL()});
-        container.setState({status: 'ready', info: 'Please enter or create room ID'});
+        this.setState({selfViewSrc: stream.toURL()});
+        this.setState({status: 'ready', info: 'Please enter or create room ID'});
       });
     });
   }
@@ -124,7 +124,7 @@ export default class VideoAudioUtil extends Component{
         localStream.release();
       }
       localStream = stream;
-      container.setState({selfViewSrc: stream.toURL()});
+      this.setState({selfViewSrc: stream.toURL()});
 
       for (const id in pcPeers) {
         const pc = pcPeers[id];
@@ -201,10 +201,10 @@ export default class VideoAudioUtil extends Component{
         facingMode: (isFront ? "user" : "environment"),
         optional: (videoSourceId ? [{sourceId: videoSourceId}] : []),
       }
-    }, function (stream) {
+    }, (stream)=()=> {
       console.log('getUserMedia success', stream);
       callback(stream);
-    }, logError);
+    }, this.logError);
   }
   
   join(roomID) {
@@ -234,8 +234,8 @@ export default class VideoAudioUtil extends Component{
         pc.setLocalDescription(desc, function () {
           console.log('setLocalDescription', pc.localDescription);
           socket.emit('exchange', {'to': socketId, 'sdp': pc.localDescription });
-        }, logError);
-      }, logError);
+        }, this.logError);
+      }, this.logError);
     }
   
     pc.onnegotiationneeded = function () {
@@ -262,11 +262,11 @@ export default class VideoAudioUtil extends Component{
   
     pc.onaddstream = function (event) {
       console.log('onaddstream', event.stream);
-      container.setState({info: 'One peer join!'});
+      this.setState({info: 'One peer join!'});
   
-      const remoteList = container.state.remoteList;
+      const remoteList = this.state.remoteList;
       remoteList[socketId] = event.stream.toURL();
-      container.setState({ remoteList: remoteList });
+      this.setState({ remoteList: remoteList });
     };
     pc.onremovestream = function (event) {
       console.log('onremovestream', event.stream);
@@ -285,12 +285,12 @@ export default class VideoAudioUtil extends Component{
   
       dataChannel.onmessage = function (event) {
         console.log("dataChannel.onmessage:", event.data);
-        container.receiveTextData({user: socketId, message: event.data});
+        this.receiveTextData({user: socketId, message: event.data});
       };
   
       dataChannel.onopen = function () {
         console.log('dataChannel.onopen');
-        container.setState({textRoomConnected: true});
+        this.setState({textRoomConnected: true});
       };
   
       dataChannel.onclose = function () {
@@ -320,9 +320,9 @@ export default class VideoAudioUtil extends Component{
             pc.setLocalDescription(desc, function () {
               console.log('setLocalDescription', pc.localDescription);
               socket.emit('exchange', {'to': fromId, 'sdp': pc.localDescription });
-            }, logError);
-          }, logError);
-      }, logError);
+            }, this.logError);
+          }, this.logError);
+      }, this.logError);
     } else {
       console.log('exchange candidate', data);
       pc.addIceCandidate(new RTCIceCandidate(data.candidate));
@@ -336,10 +336,10 @@ export default class VideoAudioUtil extends Component{
     pc.close();
     delete pcPeers[socketId];
   
-    const remoteList = container.state.remoteList;
+    const remoteList = this.state.remoteList;
     delete remoteList[socketId]
-    container.setState({ remoteList: remoteList });
-    container.setState({info: 'One peer leave!'});
+    this.setState({ remoteList: remoteList });
+    this.setState({info: 'One peer leave!'});
   }
   
   logError(error) {
@@ -362,7 +362,7 @@ export default class VideoAudioUtil extends Component{
       console.log('track', track);
       pc.getStats(track, function(report) {
         console.log('getStats report', report);
-      }, logError);
+      }, this.logError);
     }
   }
 }
