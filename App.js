@@ -13,6 +13,7 @@ import {
   View,
   TextInput,
 } from 'react-native';
+import VideoAudioUtil from './VideoAudioUtil';
 
 
 export default class App extends Component {
@@ -20,112 +21,65 @@ export default class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      userEmail: 'tarun@storm-devdb.zoylo.com',
-      userPassword: 'tarun',
-      receiver: 'swapnil@storm-devdb.zoylo.com',
-      isLoggedIn:false,
-      isVideoCallActive: false,
-      isAudioCallActive: false,
+      chatGroup: 'kellton_chat_room',
+      isGroupJoined:false,
+      isBackCamera:false
     };
+    
+    videoAudioUtil=new VideoAudioUtil();  
   }
 
-  login() {
-    //TODO
-    this.setState({isLoggedIn:true})
-   }
 
+  joinGroup(){
+    this.setState({isGroupJoined:true})
+    videoAudioUtil.join(this.state.chatGroup);
 
-  logout() {
-    this.setState({isLoggedIn:false})
   }
 
-  startAudioCall(){
-    if(!this.state.isVideoCallActive){
-      this.setState({isAudioCallActive:true})
-      //TODO
+  leaveGroup(){
+    //TODO end call and leave group 
+    this.setState({isGroupJoined:false});
+  }
+
+
+  switchCamera() {
+    if(this.state.isBackCamera){
+      //TODO swich to front 
+    }else{
+      //TODO swich to back
     }
-  }
-
-  stopAudioCall(){
-    if(!this.state.isVideoCallActive){
-      this.setState({isAudioCallActive:false})
-      //TODO
-    }
-  }
-
-  startVideoCall(){
-    if(!this.state.isAudioCallActive){
-      this.setState({isVideoCallActive:true})
-      //TODO
-    }
-  }
-
-  stopVideoCall(){
-    if(!this.state.isAudioCallActive){
-      this.setState({isVideoCallActive:false})
-      //TODO
-    }
+    this.setState({isBackCamera:!this.state.isBackCamera})
   }
 
   render() {
 
-    const isLoggedIn=this.state.isLoggedIn;
-      const loginFeilds = isLoggedIn ? (
-        <View>
-
-          <TextInput style={styles.inputField}
-            onChangeText={(text) => this.setState({ receiver: text })}
-            value={this.state.receiver} />
-
-          <View style={styles.marginButton}>
-          <Button
-            onPress={() => this.logout()}
-            color='#841584'
-            margin='10'
-            title="Logout" />
-
-          </View> 
-          <View style={styles.marginButton}>
-            <Button
-              onPress={() => this.state.isAudioCallActive?this.stopAudioCall():this.startAudioCall()}
-              color='#841584'
-              margin='10'
-              title={this.state.isAudioCallActive?("End Audio Call"):("Start Audio Call")}/>
-          </View>
-
-          <View style={styles.marginButton}>
-            <Button
-              onPress={() => this.state.isVideoCallActive?this.stopVideoCall():this.startVideoCall()}
-              color='#841584'
-              margin='10'
-              title={this.state.isVideoCallActive?("Stop Video Call"):("Start Video Call")} />
-          </View>
-        </View>
-      ) : (
-        <View>
-          <TextInput style={styles.inputField}
-            onChangeText={(text) => this.setState({ userEmail: text })}
-            value={this.state.userEmail} />
-
-          <TextInput style={styles.inputField}
-            onChangeText={(text) => this.setState({ userPassword: text })}
-            value={this.state.userPassword} />
-
-          <View style={styles.marginButton}>
-            <Button
-              onPress={() => this.login()}
-              color='#841584'
-              margin='10'
-              title="Login" />
-          </View>
-      </View>
-      );
-    
+    const cameraView=this.state.isGroupJoined?(
+      <View style={styles.marginButton}>
+        <Button
+          onPress={() => this.switchCamera()}
+          color='#841584'
+          margin='10'
+          title={this.state.isBackCamera?("Switch to front"):("Switch to back")} />
+      </View> 
+      ):(<View></View>);
 
 
     return (
       <View style={styles.container}>
-       {loginFeilds}
+
+        <TextInput style={styles.inputField}
+          onChangeText={(text) => this.setState({ chatGroup: text })}
+          value={this.state.chatGroup} />
+
+        <View style={styles.marginButton}>
+          <Button
+            onPress={() => this.state.isGroupJoined?this.leaveGroup():this.joinGroup()}
+            color='#841584'
+            margin='10'
+            title={this.state.isGroupJoined?("Leave Group"):("Join Group")} />
+        </View> 
+        {cameraView}
+         
       </View>
     );
   }
