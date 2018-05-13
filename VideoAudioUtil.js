@@ -35,7 +35,7 @@ export default class VideoAudioUtil extends Component{
     this.state= {
       info: 'Initializing',
       status: 'init',
-      roomID: '',
+      roomID: 'kellton',
       isFront: true,
       selfViewSrc: null,
       remoteList: {},
@@ -46,18 +46,20 @@ export default class VideoAudioUtil extends Component{
   }
 
   componentDidMount(){
-    socket.on('exchange', function(data){
-      exchange(data);
+    socket.on('exchange',(data)=>{
+      this.exchange(data);
     });
-    socket.on('leave', function(socketId){
-      leave(socketId);
+    socket.on('leave',(socketId)=>{
+      this.leave(socketId);
     });
     
-    socket.on('connect', (data)=()=> {
+    socket.on('connect', (data)=> {
       console.warn('connect');
-      this.getLocalStream(true, (stream)=()=> {
-        console.warn('connect1');
+      this.getLocalStream(true, (stream)=> {
+        console.warn('connect1')
         localStream = stream;
+        console.warn("stream")
+        console.warn(stream)
         this.setState({selfViewSrc: stream.toURL()});
         this.setState({status: 'ready', info: 'Please enter or create room ID'});
       });
@@ -98,7 +100,7 @@ export default class VideoAudioUtil extends Component{
         }
         <RTCView streamURL={this.state.selfViewSrc} style={styles.selfView}/>
         {
-          this.mapHash(this.state.remoteList, function(remote, index) {
+          this.mapHash(this.state.remoteList, (remote, index)=> {
             return <RTCView key={index} streamURL={remote} style={styles.remoteView}/>
           })
         }
@@ -106,16 +108,16 @@ export default class VideoAudioUtil extends Component{
     );
   } 
   
-  press(event) {
-    this.refs.roomID.blur();
+  press=(event)=> {
     this.setState({status: 'connect', info: 'Connecting'});
-    join(this.state.roomID);
+    this.join(this.state.roomID);
   }
 
-  switchVideoType() {
+  switchVideoType=()=> {
+    console.warn(this.state.isFront)
     const isFront = !this.state.isFront;
     this.setState({isFront});
-    this.getLocalStream(isFront, (stream)=()=> {
+    this.getLocalStream(isFront, (stream)=> {
       if (localStream) {
         for (const id in pcPeers) {
           const pc = pcPeers[id];
@@ -201,18 +203,18 @@ export default class VideoAudioUtil extends Component{
         facingMode: (isFront ? "user" : "environment"),
         optional: (videoSourceId ? [{sourceId: videoSourceId}] : []),
       }
-    }, (stream)=()=> {
-      console.log('getUserMedia success', stream);
+    }, (stream)=> {
+      console.warn('getUserMedia success', stream);
       callback(stream);
     }, this.logError);
   }
   
   join(roomID) {
-    socket.emit('join', roomID, function(socketIds){
+    socket.emit('join', roomID, (socketIds)=>{
       console.log('join', socketIds);
       for (const i in socketIds) {
         const socketId = socketIds[i];
-        createPC(socketId, true);
+        this.createPC(socketId, true);
       }
     });
   }
@@ -221,31 +223,22 @@ export default class VideoAudioUtil extends Component{
     const pc = new RTCPeerConnection(configuration);
     pcPeers[socketId] = pc;
 
-    pc.onicecandidate = function (event) {
+    pc.onicecandidate = (event)=> {
       console.log('onicecandidate', event.candidate);
       if (event.candidate) {
         socket.emit('exchange', {'to': socketId, 'candidate': event.candidate });
       }
     };
   
-    function createOffer() {
-      pc.createOffer(function(desc) {
-        console.log('createOffer', desc);
-        pc.setLocalDescription(desc, function () {
-          console.log('setLocalDescription', pc.localDescription);
-          socket.emit('exchange', {'to': socketId, 'sdp': pc.localDescription });
-        }, this.logError);
-      }, this.logError);
-    }
-  
-    pc.onnegotiationneeded = function () {
+    this.createOffer(pc);
+    pc.onnegotiationneeded = ()=> {
       console.log('onnegotiationneeded');
       if (isOffer) {
-        createOffer();
+        this.createOffer(pc);
       }
     }
   
-    pc.oniceconnectionstatechange = function(event) {
+    pc.oniceconnectionstatechange = (event) => {
       console.log('oniceconnectionstatechange', event.target.iceConnectionState);
       if (event.target.iceConnectionState === 'completed') {
         setTimeout(() => {
@@ -253,14 +246,15 @@ export default class VideoAudioUtil extends Component{
         }, 1000);
       }
       if (event.target.iceConnectionState === 'connected') {
-        createDataChannel();
+        this.createDataChannel(pc);
       }
     };
-    pc.onsignalingstatechange = function(event) {
+    
+    pc.onsignalingstatechange = (event)=> {
       console.log('onsignalingstatechange', event.target.signalingState);
     };
   
-    pc.onaddstream = function (event) {
+    pc.onaddstream = (event) => {
       console.log('onaddstream', event.stream);
       this.setState({info: 'One peer join!'});
   
@@ -268,38 +262,50 @@ export default class VideoAudioUtil extends Component{
       remoteList[socketId] = event.stream.toURL();
       this.setState({ remoteList: remoteList });
     };
-    pc.onremovestream = function (event) {
+    pc.onremovestream = (event)=> {
       console.log('onremovestream', event.stream);
     };
   
     pc.addStream(localStream);
-    function createDataChannel() {
-      if (pc.textDataChannel) {
-        return;
-      }
-      const dataChannel = pc.createDataChannel("text");
-  
-      dataChannel.onerror = function (error) {
-        console.log("dataChannel.onerror", error);
-      };
-  
-      dataChannel.onmessage = function (event) {
-        console.log("dataChannel.onmessage:", event.data);
-        this.receiveTextData({user: socketId, message: event.data});
-      };
-  
-      dataChannel.onopen = function () {
-        console.log('dataChannel.onopen');
-        this.setState({textRoomConnected: true});
-      };
-  
-      dataChannel.onclose = function () {
-        console.log("dataChannel.onclose");
-      };
-  
-      pc.textDataChannel = dataChannel;
-    }
+    this.createDataChannel(pc)
     return pc;
+  }
+
+  createOffer(pc) {
+    pc.createOffer((desc)=> {
+      console.log('createOffer', desc);
+      pc.setLocalDescription(desc,() => {
+        console.log('setLocalDescription', pc.localDescription);
+        socket.emit('exchange', {'to': socketId, 'sdp': pc.localDescription });
+      }, this.logError);
+    }, this.logError);
+  }
+
+  createDataChannel(pc) {
+    if (pc.textDataChannel) {
+      return;
+    }
+    const dataChannel = pc.createDataChannel("text");
+
+    dataChannel.onerror = (error)=> {
+      console.log("dataChannel.onerror", error);
+    };
+
+    dataChannel.onmessage = (event)=> {
+      console.log("dataChannel.onmessage:", event.data);
+      this.receiveTextData({user: socketId, message: event.data});
+    };
+
+    dataChannel.onopen = ()=> {
+      console.log('dataChannel.onopen');
+      this.setState({textRoomConnected: true});
+    };
+
+    dataChannel.onclose = ()=> {
+      console.log("dataChannel.onclose");
+    };
+
+    pc.textDataChannel = dataChannel;
   }
   
   exchange(data) {
@@ -308,16 +314,16 @@ export default class VideoAudioUtil extends Component{
     if (fromId in pcPeers) {
       pc = pcPeers[fromId];
     } else {
-      pc = createPC(fromId, false);
+      pc = this.createPC(fromId, false);
     }
   
     if (data.sdp) {
       console.log('exchange sdp', data);
-      pc.setRemoteDescription(new RTCSessionDescription(data.sdp), function () {
+      pc.setRemoteDescription(new RTCSessionDescription(data.sdp),()=> {
         if (pc.remoteDescription.type == "offer")
-          pc.createAnswer(function(desc) {
+          pc.createAnswer((desc)=> {
             console.log('createAnswer', desc);
-            pc.setLocalDescription(desc, function () {
+            pc.setLocalDescription(desc, ()=> {
               console.log('setLocalDescription', pc.localDescription);
               socket.emit('exchange', {'to': fromId, 'sdp': pc.localDescription });
             }, this.logError);
@@ -360,7 +366,7 @@ export default class VideoAudioUtil extends Component{
     if (pc.getRemoteStreams()[0] && pc.getRemoteStreams()[0].getAudioTracks()[0]) {
       const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
       console.log('track', track);
-      pc.getStats(track, function(report) {
+      pc.getStats(track,(report)=> {
         console.log('getStats report', report);
       }, this.logError);
     }
