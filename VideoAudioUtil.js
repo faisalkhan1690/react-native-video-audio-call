@@ -8,6 +8,7 @@ import {
   TextInput,
   ListView,
   Platform,
+  TouchableOpacity
 } from 'react-native';
 
 import {
@@ -98,6 +99,7 @@ export default class VideoAudioUtil extends Component{
             </TouchableHighlight>
           </View>) : null
         }
+        <TouchableOpacity onPress={()=>{ socket.disconnect();this.setState({selfViewSrc:null,remoteList:[]})}}><Text>Stop</Text></TouchableOpacity>
         <RTCView streamURL={this.state.selfViewSrc} style={styles.selfView}/>
         {
           this.mapHash(this.state.remoteList, (remote, index)=> {
